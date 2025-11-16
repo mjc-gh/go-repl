@@ -23,6 +23,8 @@ var (
 	DEBUG = "" // a non-empty string specifies the destination file for debugging info
 )
 
+type Option func(*Repl)
+
 type Repl struct {
 	handler Handler
 
@@ -46,12 +48,20 @@ type Repl struct {
 	width     int
 	height    int
 
+	status bool
+
 	onEnd func()
 	debug *os.File
 }
 
+func WithoutStatus() Option {
+	return func(r *Repl) {
+		r.status = false
+	}
+}
+
 // Create a new Repl using your custom Handler.
-func NewRepl(handler Handler) *Repl {
+func NewRepl(handler Handler, options ...Option) *Repl {
 
 	r := &Repl{
 		handler:     handler,
@@ -71,6 +81,7 @@ func NewRepl(handler Handler) *Repl {
 		promptRow:   -1,
 		width:       0,
 		height:      0,
+		status:      true,
 		onEnd:       nil,
 		debug:       nil,
 	}
@@ -81,6 +92,10 @@ func NewRepl(handler Handler) *Repl {
 			panic(err)
 		}
 		r.debug = debug
+	}
+
+	for _, opt := range options {
+		opt(r)
 	}
 
 	return r
@@ -1218,6 +1233,10 @@ func (r *Repl) statusFields() (string, string) {
 }
 
 func (r *Repl) statusVisible() bool {
+	if !r.status {
+		return false
+	}
+
 	if r.getWidth() < 10 {
 		return false
 	} else {
