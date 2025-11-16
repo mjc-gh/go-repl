@@ -4,6 +4,7 @@ package repl
 import (
 	"fmt"
 	"strconv"
+	"unicode/utf8"
 
 	"os"
 	"regexp"
@@ -21,6 +22,10 @@ var (
 
 	// Used by the package maintainer:
 	DEBUG = "" // a non-empty string specifies the destination file for debugging info
+
+	// regex to strip ANSI escape sequences so we can compute the visible length of
+	// a colored prompt (ANSI codes should not count towards cursor positioning).
+	ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 )
 
 type Option func(*Repl)
@@ -462,7 +467,11 @@ func (r *Repl) addBytesToBuffer(bs []byte) {
 }
 
 func (r *Repl) promptLen() int {
-	return len(r.handler.Prompt())
+	// Compute visible length of the prompt by removing ANSI escape sequences
+	// (colors / other decorations) and counting runes (to handle multi-byte UTF-8).
+	p := r.handler.Prompt()
+	plain := ansiRe.ReplaceAllString(p, "")
+	return utf8.RuneCountInString(plain)
 }
 
 func (r *Repl) bufferLen() int {
